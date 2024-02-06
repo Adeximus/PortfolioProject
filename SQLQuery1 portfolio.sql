@@ -1,4 +1,4 @@
-```sql
+
 -- Table Showing COVID-19 Infections and Deaths
 SELECT *
 FROM PortfolioProject..CovidDeaths;
