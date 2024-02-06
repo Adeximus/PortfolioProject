@@ -1,3 +1,4 @@
+```sql
 -- Table Showing COVID-19 Infections and Deaths
 SELECT *
 FROM PortfolioProject..CovidDeaths;
@@ -114,7 +115,7 @@ WHERE
 GROUP BY population, location
 ORDER BY Mortality_ratio DESC;
 
--- Global numbers.
+-- GLOBAL NUMBERS
 SELECT 
     date, 
     SUM(CAST(new_cases AS NUMERIC)) AS Total_cases, 
@@ -127,16 +128,66 @@ GROUP BY date
 ORDER BY 1;
 
 -- Displaying the total population vs Vaccination.
+WITH PopvsVac (continent, location, date, population, new_vaccinations, Vaccinationincrement)
+AS
+(
+    SELECT 
+        dea.continent, 
+        dea.location, 
+        dea.date, 
+        dea.population, 
+        vac.new_vaccinations,
+        SUM(CAST(vac.new_vaccinations AS NUMERIC)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) Vaccinationincrement
+    FROM PortfolioProject..CovidDeaths dea
+    JOIN PortfolioProject..CovidVacsinations vac
+        ON dea.location = vac.location
+        AND dea.date = vac.date 
+    WHERE 
+        dea.continent IS NOT NULL
+)
+SELECT 
+    *, 
+    (Vaccinationincrement / population) * 100
+FROM PopvsVac;
+
+-- Creating a temporary table
+DROP TABLE IF EXISTS #PercentagePopulationvaccinated;
+CREATE TABLE #PercentagePopulationvaccinated
+(
+    continent NVARCHAR(255),
+    location NVARCHAR(255),
+    date DATETIME,
+    population INT,
+    new_Vaccinations NVARCHAR(255),
+    Vaccinationincrement NUMERIC
+);
+
+INSERT INTO #PercentagePopulationvaccinated
 SELECT 
     dea.continent, 
     dea.location, 
     dea.date, 
     dea.population, 
     vac.new_vaccinations,
-    SUM(CAST(vac.new_vaccinations AS NUMERIC)) OVER (PARTITION BY dea.date)
+    SUM(CAST(vac.new_vaccinations AS NUMERIC)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) Vaccinationincrement
 FROM PortfolioProject..CovidDeaths dea
 JOIN PortfolioProject..CovidVacsinations vac
     ON dea.location = vac.location
     AND dea.date = vac.date 
 WHERE 
     dea.continent IS NOT NULL;
+
+SELECT 
+    *, 
+    (Vaccinationincrement / population) * 100
+FROM #PercentagePopulationvaccinated;
+
+-- Creating a view
+CREATE VIEW PercentagePopulationvaccinated AS
+SELECT 
+    dea.continent, 
+    dea.location, 
+    dea.date, 
+    dea.population, 
+    vac.new_vaccinations,
+    SUM(CAST(vac.new_vaccinations AS NUMERIC)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date)
